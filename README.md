@@ -80,48 +80,70 @@ let results = await EmojiIndexProvider.shared.search("smile")
 // 4. Keyword prefix match
 ```
 
-## Customization
+## Styling
 
-### Cell Size & Spacing
+The style controls all layout and appearance. Pass it directly to the grid:
+
 ```swift
-EmojiGrid(emojis: emojis) { _ in }
-    .emojiCellSize(52)
-    .emojiCellSpacing(8)
+EmojiGrid(emojis: emojis, style: LargeEmojiGridStyle(), selection: $selected)
 ```
 
-### Grid Columns
+### Built-in Styles
+
 ```swift
-EmojiGrid(
-    emojis: emojis,
-    columns: [GridItem(.fixed(60)), GridItem(.fixed(60)), GridItem(.fixed(60))]
-) { _ in }
+// Default - 44pt cells, 4pt spacing
+EmojiGrid(emojis: emojis, selection: $selected)
+
+// Default with custom size
+EmojiGrid(emojis: emojis, style: DefaultEmojiGridStyle(cellSize: 52, spacing: 8), selection: $selected)
+
+// Large - 56pt cells with backgrounds
+EmojiGrid(emojis: emojis, style: LargeEmojiGridStyle(), selection: $selected)
+
+// Compact - horizontal 36pt cells
+ScrollView(.horizontal) {
+    EmojiGrid(emojis: emojis, style: CompactEmojiGridStyle()) { emoji in }
+}
 ```
 
 ### Custom Styles
+
+The style creates the entire grid. You control layout, sizing, spacing, everything:
+
 ```swift
 struct MyStyle: EmojiGridStyle {
     func makeGrid(configuration: GridConfiguration) -> some View {
-        configuration.content
-            .padding()
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 60))], spacing: 12) {
+            ForEach(configuration.emojis) { emoji in
+                makeCell(configuration: CellConfiguration(
+                    emoji: emoji,
+                    isSelected: configuration.isSelected(emoji),
+                    isSelectable: configuration.isSelectable,
+                    onTap: { configuration.onTap(emoji) }
+                ))
+            }
+        }
     }
 
     func makeCell(configuration: CellConfiguration) -> some View {
-        configuration.content
-            .scaleEffect(configuration.isSelected ? 1.2 : 1.0)
-            .background(configuration.isSelected ? Color.blue.opacity(0.2) : .clear)
+        Button(action: configuration.onTap) {
+            Text(configuration.emoji.character)
+                .font(.system(size: 40))
+                .frame(width: 60, height: 60)
+        }
+        .background(configuration.isSelected ? Color.blue.opacity(0.3) : .clear)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     func makeSectionHeader(configuration: HeaderConfiguration) -> some View {
-        configuration.content
+        Text(configuration.category.displayName)
+            .font(.headline)
     }
 }
 
 // Usage
-EmojiGrid(emojis: emojis, selection: $selected)
-    .emojiGridStyle(MyStyle())
+EmojiGrid(emojis: emojis, style: MyStyle(), selection: $selected)
 ```
-
-Built-in styles: `DefaultEmojiGridStyle`, `SelectionHighlightStyle`, `RoundedEmojiGridStyle`
 
 ## Data Sources
 

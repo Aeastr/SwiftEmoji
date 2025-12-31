@@ -6,31 +6,31 @@ public struct GridConfiguration {
     /// All emojis being displayed.
     public let emojis: [Emoji]
 
-    /// Categories being displayed, if sectioned.
-    public let categories: [EmojiCategory]?
-
     /// Currently selected emoji characters.
     public let selection: Set<String>
 
     /// Whether selection is enabled.
     public let isSelectable: Bool
 
-    /// The default grid content.
-    public let content: AnyView
+    /// Closure to check if an emoji is selected.
+    public let isSelected: (Emoji) -> Bool
+
+    /// Closure to handle emoji tap.
+    public let onTap: (Emoji) -> Void
 
     /// Creates a new grid configuration.
     public init(
         emojis: [Emoji],
-        categories: [EmojiCategory]?,
         selection: Set<String>,
         isSelectable: Bool,
-        content: AnyView
+        isSelected: @escaping (Emoji) -> Bool,
+        onTap: @escaping (Emoji) -> Void
     ) {
         self.emojis = emojis
-        self.categories = categories
         self.selection = selection
         self.isSelectable = isSelectable
-        self.content = content
+        self.isSelected = isSelected
+        self.onTap = onTap
     }
 }
 
@@ -45,20 +45,20 @@ public struct CellConfiguration {
     /// Whether selection is enabled for the grid.
     public let isSelectable: Bool
 
-    /// The default cell content.
-    public let content: AnyView
+    /// Action to call when tapped.
+    public let onTap: () -> Void
 
     /// Creates a new cell configuration.
     public init(
         emoji: Emoji,
         isSelected: Bool,
         isSelectable: Bool,
-        content: AnyView
+        onTap: @escaping () -> Void
     ) {
         self.emoji = emoji
         self.isSelected = isSelected
         self.isSelectable = isSelectable
-        self.content = content
+        self.onTap = onTap
     }
 }
 
@@ -67,15 +67,8 @@ public struct HeaderConfiguration {
     /// The category for this header.
     public let category: EmojiCategory
 
-    /// The default header content.
-    public let content: AnyView
-
     /// Creates a new header configuration.
-    public init(
-        category: EmojiCategory,
-        content: AnyView
-    ) {
+    public init(category: EmojiCategory) {
         self.category = category
-        self.content = content
     }
 }

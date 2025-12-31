@@ -1,28 +1,39 @@
 import SwiftUI
 import SwiftEmojiIndex
 
-/// A protocol for customizing the appearance of emoji grids.
+/// A protocol for customizing the appearance and layout of emoji grids.
 ///
-/// Similar to SwiftUI's `ButtonStyle`, this protocol lets you customize
-/// how emoji grids, cells, and headers are rendered.
+/// The style is responsible for creating the entire grid layout, cell views,
+/// and section headers. This gives you full control over spacing, sizing,
+/// animations, and visual appearance.
 ///
 /// ## Creating a Custom Style
 ///
 /// ```swift
-/// struct MyCustomStyle: EmojiGridStyle {
+/// struct MyStyle: EmojiGridStyle {
 ///     func makeGrid(configuration: GridConfiguration) -> some View {
-///         configuration.content
-///             .padding()
-///             .background(.ultraThinMaterial)
+///         LazyVGrid(columns: [GridItem(.adaptive(minimum: 50))], spacing: 12) {
+///             ForEach(configuration.emojis) { emoji in
+///                 makeCell(configuration: CellConfiguration(
+///                     emoji: emoji,
+///                     isSelected: configuration.isSelected(emoji),
+///                     isSelectable: configuration.isSelectable,
+///                     onTap: { configuration.onTap(emoji) }
+///                 ))
+///             }
+///         }
 ///     }
 ///
 ///     func makeCell(configuration: CellConfiguration) -> some View {
-///         configuration.content
-///             .scaleEffect(configuration.isSelected ? 1.2 : 1.0)
+///         Button(action: configuration.onTap) {
+///             Text(configuration.emoji.character)
+///                 .font(.system(size: 32))
+///         }
+///         .background(configuration.isSelected ? Color.blue.opacity(0.2) : .clear)
 ///     }
 ///
 ///     func makeSectionHeader(configuration: HeaderConfiguration) -> some View {
-///         configuration.content
+///         Text(configuration.category.displayName)
 ///             .font(.headline)
 ///     }
 /// }
@@ -31,39 +42,23 @@ import SwiftEmojiIndex
 /// ## Applying a Style
 ///
 /// ```swift
-/// EmojiGrid(emojis: emojis) { emoji in
-///     // handle tap
-/// }
-/// .emojiGridStyle(MyCustomStyle())
+/// EmojiGrid(emojis: emojis, selection: $selection)
+///     .emojiGridStyle(MyStyle())
 /// ```
 public protocol EmojiGridStyle {
-    /// The type of view for the grid container.
     associatedtype GridBody: View
-
-    /// The type of view for each emoji cell.
     associatedtype CellBody: View
-
-    /// The type of view for section headers.
     associatedtype HeaderBody: View
 
-    /// Creates the view for the grid container.
-    ///
-    /// - Parameter configuration: The configuration for the grid
-    /// - Returns: A view representing the grid
+    /// Creates the grid layout with all cells.
     @ViewBuilder
     func makeGrid(configuration: GridConfiguration) -> GridBody
 
-    /// Creates the view for an emoji cell.
-    ///
-    /// - Parameter configuration: The configuration for the cell
-    /// - Returns: A view representing the cell
+    /// Creates an individual cell view.
     @ViewBuilder
     func makeCell(configuration: CellConfiguration) -> CellBody
 
-    /// Creates the view for a section header.
-    ///
-    /// - Parameter configuration: The configuration for the header
-    /// - Returns: A view representing the header
+    /// Creates a section header view.
     @ViewBuilder
     func makeSectionHeader(configuration: HeaderConfiguration) -> HeaderBody
 }
