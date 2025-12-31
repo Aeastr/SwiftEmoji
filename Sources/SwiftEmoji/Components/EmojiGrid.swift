@@ -373,25 +373,43 @@ extension View {
     @Previewable @State var availableLocales: [Locale] = []
     @Previewable @State var selectedLocale: Locale = .current
     @Previewable @State var loadingLocale: String?
-    @Previewable @State var loadedLocale: String = ""
+    @Previewable @State var currentProvider: EmojiIndexProvider?
+    @Previewable @State var showDiagnostics = true
 
     NavigationStack {
-        ScrollView {
-            // Show first 50 emoji with their localized names
-            LazyVStack(alignment: .leading, spacing: 8) {
+        List {
+            // Diagnostics section
+            if showDiagnostics, let provider = currentProvider, let info = provider.lastLoadInfo {
+                Section("Diagnostics") {
+                    LabeledContent("Source ID", value: info.sourceIdentifier)
+                    LabeledContent("Source", value: info.sourceDisplayName)
+                    LabeledContent("Loaded From", value: info.loadedFrom.rawValue)
+                    LabeledContent("Emoji Count", value: "\(info.emojiCount)")
+                    LabeledContent("Load Time", value: String(format: "%.2fs", info.loadDuration))
+                }
+                .font(.caption)
+            }
+
+            // Emoji list
+            Section("Emoji (\(emojis.count))") {
                 ForEach(emojis.prefix(50)) { emoji in
                     HStack {
                         Text(emoji.character)
-                            .font(.title)
-                        Text(emoji.name)
-                            .foregroundStyle(.secondary)
+                            .font(.title2)
+                        VStack(alignment: .leading) {
+                            Text(emoji.name)
+                            if !emoji.shortcodes.isEmpty {
+                                Text(":\(emoji.shortcodes.first ?? ""):")
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                            }
+                        }
                     }
                 }
             }
-            .padding()
             .opacity(loadingLocale != nil ? 0.5 : 1)
         }
-        .navigationTitle(loadingLocale != nil ? "Loading..." : "Locale: \(loadedLocale)")
+        .navigationTitle(currentProvider?.sourceIdentifier ?? "Loading...")
         .overlay {
             if let loading = loadingLocale {
                 VStack(spacing: 12) {
@@ -406,36 +424,34 @@ extension View {
             }
         }
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItem(placement: .principal) {
                 Menu {
                     ForEach(availableLocales, id: \.identifier) { locale in
                         Button {
                             selectedLocale = locale
                         } label: {
-                            HStack {
-                                Text(locale.localizedDisplayName)
-                                if locale.identifier == loadedLocale {
-                                    Image(systemName: "checkmark")
-                                }
-                            }
+                            Text(locale.localizedDisplayName)
                         }
                     }
                 } label: {
                     HStack {
-                        Text(availableLocales.isEmpty ? "Loading..." : loadedLocale.uppercased())
+                        Text(availableLocales.isEmpty ? "Loading..." : (currentProvider?.lastLoadInfo?.sourceIdentifier.replacingOccurrences(of: "cldr-", with: "").uppercased() ?? "..."))
                         Image(systemName: "chevron.down")
                     }
                 }
                 .disabled(loadingLocale != nil || availableLocales.isEmpty)
             }
+
+            ToolbarItem(placement: .secondaryAction) {
+                Toggle("Diagnostics", isOn: $showDiagnostics)
+            }
         }
         .onChange(of: selectedLocale) { _, locale in
-            guard locale.identifier != loadedLocale else { return }
             Task {
                 loadingLocale = locale.identifier
                 let provider = EmojiIndexProvider.recommended(locale: locale)
                 emojis = (try? await provider.allEmojis) ?? []
-                loadedLocale = locale.identifier
+                currentProvider = provider
                 loadingLocale = nil
             }
         }
@@ -444,10 +460,10 @@ extension View {
             availableLocales = await EmojiLocaleManager.shared.fetchAvailableLocales()
 
             // Load initial emoji
-            let initial = Locale.current
-            loadingLocale = initial.identifier
-            emojis = (try? await EmojiIndexProvider.shared.allEmojis) ?? []
-            loadedLocale = initial.language.languageCode?.identifier ?? "en"
+            loadingLocale = Locale.current.identifier
+            let provider = EmojiIndexProvider.shared
+            emojis = (try? await provider.allEmojis) ?? []
+            currentProvider = provider
             loadingLocale = nil
         }
     }

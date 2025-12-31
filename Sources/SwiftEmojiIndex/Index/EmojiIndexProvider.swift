@@ -50,8 +50,41 @@ public final class EmojiIndexProvider: EmojiIndexProtocol, @unchecked Sendable {
     /// Whether the index has been loaded.
     public private(set) var isLoaded: Bool = false
 
+    /// Diagnostic info about the last load operation.
+    public private(set) var lastLoadInfo: LoadInfo?
+
     /// Lock for thread-safe access.
     private let lock = NSLock()
+
+    // MARK: - Diagnostics
+
+    /// Information about a load operation for debugging.
+    public struct LoadInfo: Sendable {
+        /// The data source identifier used.
+        public let sourceIdentifier: String
+        /// The data source display name.
+        public let sourceDisplayName: String
+        /// Where the data came from.
+        public let loadedFrom: LoadSource
+        /// Number of emoji loaded.
+        public let emojiCount: Int
+        /// Time taken to load.
+        public let loadDuration: TimeInterval
+        /// When the load completed.
+        public let timestamp: Date
+
+        public enum LoadSource: String, Sendable {
+            case cache = "Cache"
+            case fallback = "Bundled Fallback"
+            case network = "Network"
+        }
+    }
+
+    /// The data source identifier for this provider.
+    public var sourceIdentifier: String { source.identifier }
+
+    /// The data source display name for this provider.
+    public var sourceDisplayName: String { source.displayName }
 
     // MARK: - Initialization
 
@@ -230,9 +263,10 @@ public final class EmojiIndexProvider: EmojiIndexProtocol, @unchecked Sendable {
     }
 
     public func refresh() async throws {
+        let startTime = Date()
         let entries = try await source.fetch()
         try await cache.save(entries, for: source.identifier)
-        await loadFromEntries(entries)
+        await loadFromEntries(entries, source: .network, startTime: startTime)
     }
 
     // MARK: - Loading
@@ -243,9 +277,11 @@ public final class EmojiIndexProvider: EmojiIndexProtocol, @unchecked Sendable {
             return
         }
 
+        let startTime = Date()
+
         // Try loading from cache first
         if let cached = try? await cache.load(for: source.identifier) {
-            await loadFromEntries(cached.entries)
+            await loadFromEntries(cached.entries, source: .cache, startTime: startTime)
             lock.withLock {
                 lastUpdated = cached.lastUpdated
             }
@@ -261,7 +297,7 @@ public final class EmojiIndexProvider: EmojiIndexProtocol, @unchecked Sendable {
 
         // Try loading from bundled fallback
         if let fallback = try? await loadBundledFallback() {
-            await loadFromEntries(fallback)
+            await loadFromEntries(fallback, source: .fallback, startTime: startTime)
 
             // Fetch fresh data in background
             Task {
@@ -275,7 +311,11 @@ public final class EmojiIndexProvider: EmojiIndexProtocol, @unchecked Sendable {
     }
 
     /// Loads emoji data from raw entries.
-    private func loadFromEntries(_ entries: [EmojiRawEntry]) async {
+    private func loadFromEntries(
+        _ entries: [EmojiRawEntry],
+        source loadSource: LoadInfo.LoadSource? = nil,
+        startTime: Date? = nil
+    ) async {
         var newEmojis: [Emoji] = []
         var newByCharacter: [String: Emoji] = [:]
         var newByShortcode: [String: Emoji] = [:]
@@ -302,6 +342,18 @@ public final class EmojiIndexProvider: EmojiIndexProtocol, @unchecked Sendable {
             isLoaded = true
             if lastUpdated == nil {
                 lastUpdated = Date()
+            }
+
+            // Record diagnostic info
+            if let loadSource = loadSource {
+                lastLoadInfo = LoadInfo(
+                    sourceIdentifier: source.identifier,
+                    sourceDisplayName: source.displayName,
+                    loadedFrom: loadSource,
+                    emojiCount: newEmojis.count,
+                    loadDuration: startTime.map { Date().timeIntervalSince($0) } ?? 0,
+                    timestamp: Date()
+                )
             }
         }
     }
