@@ -420,10 +420,11 @@ public final class EmojiIndexProvider: EmojiIndexProtocol, @unchecked Sendable {
     ///
     /// Priority:
     /// 1. Custom fallback URL (if provided in init)
-    /// 2. Bundled fallback resource
+    /// 2. Locale-specific bundled fallback (e.g., `emoji-fallback-ja.json`)
+    /// 3. Default bundled fallback (`emoji-fallback.json`)
     ///
     /// The fallback must be in `EmojiRawEntry` JSON format.
-    /// Run `swift run BuildEmojiIndex` to generate a compatible file.
+    /// Run `swift run BuildEmojiIndex --locale <locale>` to generate locale-specific files.
     private func loadBundledFallback() async throws -> [EmojiRawEntry]? {
         // Try custom fallback first
         if let customURL = customFallbackURL {
@@ -431,7 +432,14 @@ public final class EmojiIndexProvider: EmojiIndexProtocol, @unchecked Sendable {
             return try JSONDecoder().decode([EmojiRawEntry].self, from: data)
         }
 
-        // Fall back to bundled resource
+        // Try locale-specific fallback
+        let localeId = locale.language.languageCode?.identifier ?? locale.identifier
+        if let url = Bundle.module.url(forResource: "emoji-fallback-\(localeId)", withExtension: "json") {
+            let data = try Data(contentsOf: url)
+            return try JSONDecoder().decode([EmojiRawEntry].self, from: data)
+        }
+
+        // Fall back to default bundled resource
         guard let url = Bundle.module.url(forResource: "emoji-fallback", withExtension: "json") else {
             return nil
         }

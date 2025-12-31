@@ -424,7 +424,7 @@ extension View {
             }
         }
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
+            ToolbarItem(placement: .navigation) {
                 Menu {
                     ForEach(availableLocales, id: \.identifier) { locale in
                         Button {
@@ -449,7 +449,7 @@ extension View {
                 .disabled(provider.isLoading || availableLocales.isEmpty)
             }
 
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItem(placement: .primaryAction) {
                 Menu {
                     Toggle("Show Diagnostics", isOn: $showDiagnostics)
 

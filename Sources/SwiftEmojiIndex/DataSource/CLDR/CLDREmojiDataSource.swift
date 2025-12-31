@@ -17,6 +17,9 @@ import Foundation
 ///     primary: CLDREmojiDataSource(locale: .current),
 ///     secondary: GemojiDataSource.shared
 /// )
+///
+/// // Disable fallback to English (throws if locale unavailable)
+/// let strict = CLDREmojiDataSource(locale: Locale(identifier: "ja"), fallbackLocale: nil)
 /// ```
 ///
 /// ## Available Locales
@@ -27,6 +30,10 @@ public struct CLDREmojiDataSource: EmojiDataSource {
     public let identifier: String
     public let displayName: String
     public let locale: Locale
+
+    /// The locale to fall back to if the requested locale is unavailable.
+    /// Set to `nil` to disable fallback (will throw if locale unavailable).
+    public let fallbackLocale: Locale?
 
     /// Base URL for CLDR emoji annotations JSON.
     private static let baseURL = "https://raw.githubusercontent.com/unicode-org/cldr-json/main/cldr-json/cldr-annotations-full/annotations"
@@ -63,9 +70,12 @@ public struct CLDREmojiDataSource: EmojiDataSource {
 
     /// Creates a CLDR data source for the specified locale.
     ///
-    /// - Parameter locale: The locale for emoji names. Falls back to English if unavailable.
-    public init(locale: Locale = .current) {
+    /// - Parameters:
+    ///   - locale: The locale for emoji names.
+    ///   - fallbackLocale: The locale to fall back to if unavailable. Defaults to `nil` (no fallback).
+    public init(locale: Locale = .current, fallbackLocale: Locale? = nil) {
         self.locale = locale
+        self.fallbackLocale = fallbackLocale
         self.identifier = "cldr-\(locale.identifier)"
         self.displayName = "Unicode CLDR (\(locale.identifier))"
     }
@@ -131,14 +141,22 @@ public struct CLDREmojiDataSource: EmojiDataSource {
         print("[CLDREmojiDataSource] Requested locale: \(locale.identifier), resolved to: \(localeId)")
         #endif
 
-        // Try requested locale first, fall back to English if not found
+        // Try requested locale first
         var data = try await fetchAnnotations(for: localeId)
-        if data == nil && localeId != "en" {
-            data = try await fetchAnnotations(for: "en")
+
+        // Try fallback locale if primary failed and fallback is configured
+        if data == nil, let fallback = fallbackLocale {
+            let fallbackId = fallback.language.languageCode?.identifier ?? "en"
+            if fallbackId != localeId {
+                #if DEBUG
+                print("[CLDREmojiDataSource] Locale '\(localeId)' unavailable, trying fallback: \(fallbackId)")
+                #endif
+                data = try await fetchAnnotations(for: fallbackId)
+            }
         }
 
         guard let data else {
-            throw EmojiIndexError.sourceUnavailable(reason: "Could not fetch CLDR annotations for \(localeId) or en")
+            throw EmojiIndexError.sourceUnavailable(reason: "Could not fetch CLDR annotations for \(localeId)")
         }
 
         let entries = try parseAnnotations(data)

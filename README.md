@@ -369,13 +369,23 @@ Fallback must be JSON array of `EmojiRawEntry`:
 ]
 ```
 
-### Regenerating Bundled Fallback
+### Building Fallback Files
 
 ```bash
 swift run BuildEmojiIndex
 ```
 
-Downloads latest Gemoji data and writes to `Sources/SwiftEmojiIndex/Resources/emoji-fallback.json`.
+Interactive CLI that guides you through building fallback files:
+
+| Source | Description |
+|--------|-------------|
+| **GitHub Gemoji** | English with shortcodes |
+| **Unicode CLDR** | 30+ languages, cross-platform |
+| **CLDR + Gemoji** | Localized names with shortcodes |
+| **Apple CoreEmoji** | macOS only, highest quality localization |
+| **Apple + Gemoji** | macOS only, localized with shortcodes |
+
+You can select multiple locales at once. Files are written to `Sources/SwiftEmojiIndex/Resources/` as `emoji-fallback-{locale}.json`.
 
 ## Caching
 
