@@ -203,10 +203,9 @@ extension View {
 
 // MARK: - Previews
 
-#if DEBUG
-private struct PreviewWrapper: View {
-    @State private var singleSelection: Emoji?
-    @State private var multipleSelection: Set<String> = []
+#Preview {
+    @Previewable @State var singleSelection: Emoji?
+    @Previewable @State var multipleSelection: Set<String> = []
 
     let sampleEmojis = [
         Emoji(character: "😀", name: "grinning face", category: .smileysAndEmotion),
@@ -217,33 +216,26 @@ private struct PreviewWrapper: View {
         Emoji(character: "😎", name: "smiling face with sunglasses", category: .smileysAndEmotion),
     ]
 
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                Text("Default style")
-                    .font(.headline)
-                EmojiGrid(emojis: sampleEmojis, selection: $singleSelection)
+    ScrollView {
+        VStack(alignment: .leading, spacing: 24) {
+            Text("Default style")
+                .font(.headline)
+            EmojiGrid(emojis: sampleEmojis, selection: $singleSelection)
 
-                Text("Large style")
-                    .font(.headline)
-                EmojiGrid(emojis: sampleEmojis, selection: $multipleSelection)
-                    .emojiGridStyle(LargeEmojiGridStyle())
+            Text("Large style")
+                .font(.headline)
+            EmojiGrid(emojis: sampleEmojis, selection: $multipleSelection)
+                .emojiGridStyle(.large)
 
-                Text("Compact style")
-                    .font(.headline)
-                ScrollView(.horizontal) {
-                    EmojiGrid(emojis: sampleEmojis) { emoji in
-                        print("Tapped: \(emoji.character)")
-                    }
-                    .emojiGridStyle(CompactEmojiGridStyle())
+            Text("Compact style")
+                .font(.headline)
+            ScrollView(.horizontal) {
+                EmojiGrid(emojis: sampleEmojis) { emoji in
+                    print("Tapped: \(emoji.character)")
                 }
+                .emojiGridStyle(.compact)
             }
-            .padding()
         }
+        .padding()
     }
 }
-
-#Preview {
-    PreviewWrapper()
-}
-#endif

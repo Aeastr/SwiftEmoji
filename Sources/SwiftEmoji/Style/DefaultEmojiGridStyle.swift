@@ -26,7 +26,7 @@ extension EmojiGridStyle where Self == CompactEmojiGridStyle {
 // MARK: - Default Style
 
 /// The default emoji grid style.
-public struct DefaultEmojiGridStyle: EmojiGridStyle {
+public struct DefaultEmojiGridStyle: EmojiGridStyle, @unchecked Sendable {
     public let cellSize: CGFloat
     public let spacing: CGFloat
     public let columns: [GridItem]?
