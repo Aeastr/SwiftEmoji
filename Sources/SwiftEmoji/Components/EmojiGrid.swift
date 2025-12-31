@@ -245,7 +245,7 @@ extension View {
                 if query.isEmpty {
                     searchResults = []
                 } else {
-                    searchResults = await EmojiIndexProvider.shared.search(query, rankByUsage: true)
+                    searchResults = await EmojiIndexProvider.shared.search(query, ranking: .usage)
                 }
             }
         }
