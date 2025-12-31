@@ -367,3 +367,157 @@ extension View {
         .padding()
     }
 }
+
+#Preview("Localization") {
+    @Previewable @State var emojis: [Emoji] = []
+    @Previewable @State var availableLocales: [Locale] = []
+    @Previewable @State var selectedLocale: Locale = .current
+    @Previewable @State var loadingLocale: String?
+    @Previewable @State var loadedLocale: String = ""
+
+    NavigationStack {
+        ScrollView {
+            // Show first 50 emoji with their localized names
+            LazyVStack(alignment: .leading, spacing: 8) {
+                ForEach(emojis.prefix(50)) { emoji in
+                    HStack {
+                        Text(emoji.character)
+                            .font(.title)
+                        Text(emoji.name)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .padding()
+            .opacity(loadingLocale != nil ? 0.5 : 1)
+        }
+        .navigationTitle(loadingLocale != nil ? "Loading..." : "Locale: \(loadedLocale)")
+        .overlay {
+            if let loading = loadingLocale {
+                VStack(spacing: 12) {
+                    ProgressView()
+                        .scaleEffect(1.5)
+                    Text("Fetching \(loading) emoji data...")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(.ultraThinMaterial)
+            }
+        }
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    ForEach(availableLocales, id: \.identifier) { locale in
+                        Button {
+                            selectedLocale = locale
+                        } label: {
+                            HStack {
+                                Text(locale.localizedDisplayName)
+                                if locale.identifier == loadedLocale {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
+                    }
+                } label: {
+                    HStack {
+                        Text(availableLocales.isEmpty ? "Loading..." : loadedLocale.uppercased())
+                        Image(systemName: "chevron.down")
+                    }
+                }
+                .disabled(loadingLocale != nil || availableLocales.isEmpty)
+            }
+        }
+        .onChange(of: selectedLocale) { _, locale in
+            guard locale.identifier != loadedLocale else { return }
+            Task {
+                loadingLocale = locale.identifier
+                let provider = EmojiIndexProvider.recommended(locale: locale)
+                emojis = (try? await provider.allEmojis) ?? []
+                loadedLocale = locale.identifier
+                loadingLocale = nil
+            }
+        }
+        .task {
+            // Fetch available locales
+            availableLocales = await EmojiLocaleManager.shared.fetchAvailableLocales()
+
+            // Load initial emoji
+            let initial = Locale.current
+            loadingLocale = initial.identifier
+            emojis = (try? await EmojiIndexProvider.shared.allEmojis) ?? []
+            loadedLocale = initial.language.languageCode?.identifier ?? "en"
+            loadingLocale = nil
+        }
+    }
+}
+
+#Preview("Usage Tracker") {
+    @Previewable @State var emojis: [Emoji] = []
+    @Previewable @State var favorites: [Emoji] = []
+
+    let tracker = EmojiUsageTracker.shared
+
+    NavigationStack {
+        List {
+            Section("Settings") {
+                Stepper("Min Favorites: \(tracker.minFavorites)", value: Binding(
+                    get: { tracker.minFavorites },
+                    set: { tracker.minFavorites = $0 }
+                ), in: 1...20)
+
+                Stepper("Max Favorites: \(tracker.maxFavorites)", value: Binding(
+                    get: { tracker.maxFavorites },
+                    set: { tracker.maxFavorites = $0 }
+                ), in: 10...50)
+
+                Button("Clear All Usage") {
+                    tracker.clearAll()
+                    Task {
+                        favorites = await EmojiIndexProvider.shared.favorites()
+                    }
+                }
+                .foregroundStyle(.red)
+            }
+
+            Section("Favorites (\(favorites.count))") {
+                if favorites.isEmpty {
+                    Text("Tap emoji below to add favorites")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack {
+                            ForEach(favorites) { emoji in
+                                VStack {
+                                    Text(emoji.character)
+                                        .font(.title)
+                                    Text(String(format: "%.1f", tracker.score(for: emoji.character)))
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Section("Tap to Use") {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    EmojiGrid(emojis: Array(emojis.prefix(30))) { emoji in
+                        tracker.recordUse(emoji.character)
+                        Task {
+                            favorites = await EmojiIndexProvider.shared.favorites()
+                        }
+                    }
+                    .emojiGridStyle(.compact)
+                }
+            }
+        }
+        .navigationTitle("Usage Tracker")
+        .task {
+            emojis = (try? await EmojiIndexProvider.shared.allEmojis) ?? []
+            favorites = await EmojiIndexProvider.shared.favorites()
+        }
+    }
+}
