@@ -443,7 +443,35 @@ extension View {
             }
 
             ToolbarItem(placement: .topBarTrailing) {
-                Toggle("Diagnostics", isOn: $showDiagnostics)
+                Menu {
+                    Toggle("Show Diagnostics", isOn: $showDiagnostics)
+
+                    Divider()
+
+                    Button("Clear All Caches", role: .destructive) {
+                        Task {
+                            try? await DiskCache.shared.clearAll()
+                            // Reload current
+                            loadingLocale = selectedLocale.identifier
+                            let provider = EmojiIndexProvider.recommended(locale: selectedLocale)
+                            emojis = (try? await provider.allEmojis) ?? []
+                            currentProvider = provider
+                            loadingLocale = nil
+                        }
+                    }
+
+                    Button("Force Refresh") {
+                        Task {
+                            guard let provider = currentProvider else { return }
+                            loadingLocale = selectedLocale.identifier
+                            try? await provider.refresh()
+                            emojis = (try? await provider.allEmojis) ?? []
+                            loadingLocale = nil
+                        }
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
             }
         }
         .onChange(of: selectedLocale) { _, locale in

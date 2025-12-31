@@ -127,48 +127,66 @@ public struct CLDREmojiDataSource: EmojiDataSource {
 
     public func fetch() async throws -> [EmojiRawEntry] {
         let localeId = bestAvailableLocale()
-        let url = URL(string: "\(Self.baseURL)/\(localeId)/annotations.json")!
+        #if DEBUG
+        print("[CLDREmojiDataSource] Requested locale: \(locale.identifier), resolved to: \(localeId)")
+        #endif
 
-        let data: Data
-        do {
-            let (fetchedData, response) = try await URLSession.shared.data(from: url)
-            guard let httpResponse = response as? HTTPURLResponse else {
-                throw EmojiIndexError.invalidResponse(statusCode: 0)
-            }
-            guard httpResponse.statusCode == 200 else {
-                throw EmojiIndexError.invalidResponse(statusCode: httpResponse.statusCode)
-            }
-            data = fetchedData
-        } catch let error as EmojiIndexError {
-            throw error
-        } catch {
-            throw EmojiIndexError.networkUnavailable(underlying: error)
+        // Try requested locale first, fall back to English if not found
+        var data = try await fetchAnnotations(for: localeId)
+        if data == nil && localeId != "en" {
+            data = try await fetchAnnotations(for: "en")
         }
 
-        return try parseAnnotations(data)
+        guard let data else {
+            throw EmojiIndexError.sourceUnavailable(reason: "Could not fetch CLDR annotations for \(localeId) or en")
+        }
+
+        let entries = try parseAnnotations(data)
+        #if DEBUG
+        if let first = entries.first {
+            print("[CLDREmojiDataSource] First emoji: \(first.character) = \"\(first.name)\"")
+        }
+        print("[CLDREmojiDataSource] Fetched \(entries.count) entries")
+        #endif
+        return entries
+    }
+
+    /// Fetch annotations for a specific locale, returns nil if not found (404).
+    private func fetchAnnotations(for localeId: String) async throws -> Data? {
+        let url = URL(string: "\(Self.baseURL)/\(localeId)/annotations.json")!
+
+        let (fetchedData, response) = try await URLSession.shared.data(from: url)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw EmojiIndexError.invalidResponse(statusCode: 0)
+        }
+
+        // 404 = locale not available, return nil to try fallback
+        if httpResponse.statusCode == 404 {
+            #if DEBUG
+            print("[CLDREmojiDataSource] Locale '\(localeId)' not found (404), will try fallback")
+            #endif
+            return nil
+        }
+
+        guard httpResponse.statusCode == 200 else {
+            throw EmojiIndexError.invalidResponse(statusCode: httpResponse.statusCode)
+        }
+
+        return fetchedData
     }
 
     // MARK: - Private
 
-    /// Find the best available locale, falling back as needed.
+    /// Get the locale identifier to use for fetching.
+    /// Returns the language code (e.g., "en" from "en_US").
     private func bestAvailableLocale() -> String {
-        let available = Self.availableLocales
-        let identifier = locale.identifier.replacingOccurrences(of: "_", with: "-")
-
-        // Try exact match
-        if available.contains(where: { $0.identifier == identifier }) {
-            return identifier
-        }
-
-        // Try language only (e.g., "en-US" -> "en")
+        // Use language code directly - CLDR directories are language codes
         if let language = locale.language.languageCode?.identifier {
-            if available.contains(where: { $0.identifier == language }) {
-                return language
-            }
+            return language
         }
-
-        // Fallback to English
-        return "en"
+        // Fallback: clean up identifier
+        let identifier = locale.identifier.replacingOccurrences(of: "_", with: "-")
+        return identifier.components(separatedBy: "-").first ?? "en"
     }
 
     /// Parse CLDR annotations JSON into emoji entries.

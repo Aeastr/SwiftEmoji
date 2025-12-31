@@ -49,6 +49,14 @@ public struct BlendedEmojiDataSource: EmojiDataSource {
         let primaryEntries = try await primary.fetch()
         let secondaryEntries = try await secondary.fetch()
 
+        #if DEBUG
+        print("[BlendedEmojiDataSource] Primary (\(primary.identifier)): \(primaryEntries.count) entries")
+        print("[BlendedEmojiDataSource] Secondary (\(secondary.identifier)): \(secondaryEntries.count) entries")
+        if let first = primaryEntries.first {
+            print("[BlendedEmojiDataSource] Primary first: \(first.character) = \"\(first.name)\"")
+        }
+        #endif
+
         // Index secondary by character for fast lookup
         var secondaryByChar: [String: EmojiRawEntry] = [:]
         for entry in secondaryEntries {
@@ -84,6 +92,13 @@ public struct BlendedEmojiDataSource: EmojiDataSource {
                 results.append(entry)
             }
         }
+
+        #if DEBUG
+        if let first = results.first {
+            print("[BlendedEmojiDataSource] Result first: \(first.character) = \"\(first.name)\"")
+        }
+        print("[BlendedEmojiDataSource] Total blended: \(results.count) entries")
+        #endif
 
         return results
     }
