@@ -424,45 +424,87 @@ let provider = EmojiIndexProvider(
 )
 ```
 
-## Localization (macOS)
+## Localization
 
-Manage emoji locale preferences:
+Emoji names and keywords are available in 100+ languages via Unicode CLDR (all platforms) or Apple CoreEmoji (macOS).
+
+### Unicode CLDR (All Platforms)
+
+```swift
+// Japanese emoji names - works on iOS, macOS, visionOS
+let source = CLDREmojiDataSource(locale: Locale(identifier: "ja"))
+let provider = EmojiIndexProvider(source: source)
+
+// With Gemoji shortcodes
+let blended = BlendedEmojiDataSource(
+    primary: CLDREmojiDataSource(locale: .current),
+    secondary: GemojiDataSource.shared
+)
+
+// Available locales (100+)
+let locales = CLDREmojiDataSource.availableLocales
+```
+
+### Apple CoreEmoji (macOS)
+
+Higher quality localization on macOS using Apple's private framework:
 
 ```swift
 #if os(macOS)
+if AppleEmojiDataSource.isAvailable {
+    let source = AppleEmojiDataSource(locale: .current)
+    // Or blend with Gemoji for shortcodes
+    let blended = BlendedEmojiDataSource(
+        primary: source,
+        secondary: GemojiDataSource.shared
+    )
+}
+#endif
+```
+
+### Locale Manager
+
+```swift
 let localeManager = EmojiLocaleManager.shared
 
-// Available locales from CoreEmoji
+// All available locales (CLDR + Apple on macOS)
 let available = localeManager.availableLocales
-// [en, ja, fr, de, ...]
 
-// Set preferred locale
+// Set preferred locale (auto-persists to UserDefaults)
 localeManager.preferredLocale = Locale(identifier: "ja")
 
 // Get effective locale (preferred or system)
 let current = localeManager.effectiveLocale
 
-// Check if localization is available
-if localeManager.isLocalizationAvailable {
-    // Create localized provider
-    let source = AppleEmojiDataSource(locale: current)
-    // ...
-}
-#endif
+// Platform-specific
+let cldrLocales = localeManager.cldrLocales      // All platforms
+let appleLocales = localeManager.appleLocales    // macOS only
 ```
 
-### Persisting Locale Preference
-
-`EmojiLocaleManager` automatically persists to UserDefaults. For custom storage:
+### Recommended Setup
 
 ```swift
-// Save
-UserDefaults.standard.set(locale.identifier, forKey: "myApp.emojiLocale")
+func createEmojiProvider(for locale: Locale) -> EmojiIndexProvider {
+    let primary: any EmojiDataSource
 
-// Load
-if let id = UserDefaults.standard.string(forKey: "myApp.emojiLocale") {
-    let locale = Locale(identifier: id)
-    let source = AppleEmojiDataSource(locale: locale)
+    #if os(macOS)
+    if AppleEmojiDataSource.isAvailable {
+        // Prefer Apple on macOS (better quality)
+        primary = AppleEmojiDataSource(locale: locale)
+    } else {
+        primary = CLDREmojiDataSource(locale: locale)
+    }
+    #else
+    primary = CLDREmojiDataSource(locale: locale)
+    #endif
+
+    // Blend with Gemoji for shortcodes
+    let blended = BlendedEmojiDataSource(
+        primary: primary,
+        secondary: GemojiDataSource.shared
+    )
+
+    return EmojiIndexProvider(source: blended)
 }
 ```
 

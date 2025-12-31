@@ -43,22 +43,43 @@ public final class EmojiLocaleManager: @unchecked Sendable {
 
     /// Available locales for emoji data.
     ///
-    /// On macOS, this returns locales available in CoreEmoji.
-    /// On other platforms, returns common locales (for custom sources).
+    /// Returns the union of:
+    /// - CLDR locales (all platforms)
+    /// - Apple CoreEmoji locales (macOS only)
     public var availableLocales: [Locale] {
+        var locales = Set(CLDREmojiDataSource.availableLocales)
+        #if os(macOS)
+        locales.formUnion(appleAvailableLocales())
+        #endif
+        return locales.sorted { $0.identifier < $1.identifier }
+    }
+
+    /// CLDR locales (cross-platform).
+    public var cldrLocales: [Locale] {
+        CLDREmojiDataSource.availableLocales
+    }
+
+    /// Apple CoreEmoji locales (macOS only).
+    public var appleLocales: [Locale] {
         #if os(macOS)
         return appleAvailableLocales()
         #else
-        return commonLocales
+        return []
         #endif
     }
 
     /// Whether localized emoji names are available on this platform.
+    /// Always true since CLDR works everywhere.
     public var isLocalizationAvailable: Bool {
+        true
+    }
+
+    /// Whether Apple's CoreEmoji is available (macOS only, better quality).
+    public var isAppleLocalizationAvailable: Bool {
         #if os(macOS)
         return AppleEmojiDataSource.isAvailable
         #else
-        return false // Unless using a custom localized source
+        return false
         #endif
     }
 
@@ -74,22 +95,6 @@ public final class EmojiLocaleManager: @unchecked Sendable {
         AppleEmojiDataSource.availableLocales()
     }
     #endif
-
-    /// Common locales for reference (doesn't mean data is available).
-    private let commonLocales: [Locale] = [
-        Locale(identifier: "en"),
-        Locale(identifier: "es"),
-        Locale(identifier: "fr"),
-        Locale(identifier: "de"),
-        Locale(identifier: "it"),
-        Locale(identifier: "pt"),
-        Locale(identifier: "ja"),
-        Locale(identifier: "ko"),
-        Locale(identifier: "zh-Hans"),
-        Locale(identifier: "zh-Hant"),
-        Locale(identifier: "ar"),
-        Locale(identifier: "ru"),
-    ]
 }
 
 // MARK: - Locale Helpers
