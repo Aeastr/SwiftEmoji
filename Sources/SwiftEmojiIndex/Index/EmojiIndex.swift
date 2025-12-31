@@ -44,11 +44,19 @@ public protocol EmojiIndex: Sendable {
     /// Search priority:
     /// 1. Exact shortcode match (pinned to top)
     /// 2. Name contains query
-    /// 3. Keyword prefix match
+    /// 3. Shortcode prefix match
+    /// 4. Keyword prefix match
     ///
-    /// - Parameter query: The search query
+    /// - Parameters:
+    ///   - query: The search query
+    ///   - rankByUsage: If true, results are sorted by usage score
     /// - Returns: Array of matching emojis, ordered by relevance
-    func search(_ query: String) async -> [Emoji]
+    func search(_ query: String, rankByUsage: Bool) async -> [Emoji]
+
+    /// Get favorite emoji based on usage history.
+    ///
+    /// - Returns: Emoji sorted by usage frequency/recency
+    func favorites() async -> [Emoji]
 
     /// Refreshes the emoji data from the source.
     ///
@@ -60,4 +68,13 @@ public protocol EmojiIndex: Sendable {
 
     /// Whether the cached data is stale and should be refreshed.
     var isStale: Bool { get async }
+}
+
+// MARK: - Default Implementations
+
+extension EmojiIndex {
+    /// Search without usage ranking (convenience).
+    public func search(_ query: String) async -> [Emoji] {
+        await search(query, rankByUsage: false)
+    }
 }

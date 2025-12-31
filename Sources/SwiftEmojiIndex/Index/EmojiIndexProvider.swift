@@ -108,21 +108,38 @@ public final class EmojiIndexProvider: EmojiIndex, @unchecked Sendable {
         return lock.withLock { byShortcode[lowercased] }
     }
 
-    public func search(_ query: String) async -> [Emoji] {
+    /// Search emoji by query.
+    ///
+    /// - Parameters:
+    ///   - query: The search query
+    ///   - rankByUsage: If true, results are sorted by usage score (requires EmojiUsageTracker)
+    /// - Returns: Matching emoji, with exact shortcode matches first
+    ///
+    /// Search priority:
+    /// 1. Exact shortcode match (pinned to top)
+    /// 2. Name contains query
+    /// 3. Shortcode prefix match
+    /// 4. Keyword prefix match
+    public func search(_ query: String, rankByUsage: Bool = false) async -> [Emoji] {
         try? await ensureLoaded()
 
         let query = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard !query.isEmpty else {
-            return lock.withLock { emojis }
+            let all = lock.withLock { emojis }
+            if rankByUsage {
+                return rankByUsageScore(all)
+            }
+            return all
         }
 
         return lock.withLock {
+            var exactMatch: Emoji?
             var results: [Emoji] = []
             var seen = Set<String>()
 
-            // Priority 1: Exact shortcode match
+            // Priority 1: Exact shortcode match (will be inserted at front)
             if let exact = byShortcode[query] {
-                results.append(exact)
+                exactMatch = exact
                 seen.insert(exact.character)
             }
 
@@ -153,7 +170,34 @@ public final class EmojiIndexProvider: EmojiIndex, @unchecked Sendable {
                 }
             }
 
+            // Rank by usage if enabled
+            if rankByUsage {
+                results = rankByUsageScore(results)
+            }
+
+            // Insert exact match at front
+            if let exact = exactMatch {
+                results.insert(exact, at: 0)
+            }
+
             return results
+        }
+    }
+
+    /// Rank emoji by usage score (highest first).
+    private func rankByUsageScore(_ emojis: [Emoji]) -> [Emoji] {
+        let tracker = EmojiUsageTracker.shared
+        return emojis.sorted { tracker.score(for: $0.character) > tracker.score(for: $1.character) }
+    }
+
+    /// Get favorite emoji based on usage history.
+    ///
+    /// Returns emoji objects for the user's most frequently/recently used emoji.
+    public func favorites() async -> [Emoji] {
+        try? await ensureLoaded()
+        let favoriteChars = EmojiUsageTracker.shared.favorites
+        return lock.withLock {
+            favoriteChars.compactMap { byCharacter[$0] }
         }
     }
 

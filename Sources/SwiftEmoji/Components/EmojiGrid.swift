@@ -203,9 +203,134 @@ extension View {
 
 // MARK: - Previews
 
-#Preview {
-    @Previewable @State var singleSelection: Emoji?
-    @Previewable @State var multipleSelection: Set<String> = []
+#Preview("Searchable Picker") {
+    @Previewable @State var searchText = ""
+    @Previewable @State var emojis: [Emoji] = []
+    @Previewable @State var favorites: [Emoji] = []
+    @Previewable @State var searchResults: [Emoji] = []
+    @Previewable @State var selected: Emoji?
+
+    NavigationStack {
+        ScrollView {
+            // Show favorites when not searching
+            if searchText.isEmpty && !favorites.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Frequently Used")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal)
+
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        EmojiGrid(emojis: favorites) { emoji in
+                            EmojiUsageTracker.shared.recordUse(emoji.character)
+                            selected = emoji
+                        }
+                        .emojiGridStyle(.compact)
+                        .padding(.horizontal)
+                    }
+                }
+                .padding(.bottom)
+            }
+
+            EmojiGrid(emojis: searchText.isEmpty ? emojis : searchResults) { emoji in
+                EmojiUsageTracker.shared.recordUse(emoji.character)
+                selected = emoji
+            }
+            .padding(.horizontal)
+        }
+        .navigationTitle("Emoji")
+        .searchable(text: $searchText, prompt: "Search emoji")
+        .onChange(of: searchText) { _, query in
+            Task {
+                if query.isEmpty {
+                    searchResults = []
+                } else {
+                    searchResults = await EmojiIndexProvider.shared.search(query, rankByUsage: true)
+                }
+            }
+        }
+        .task {
+            emojis = (try? await EmojiIndexProvider.shared.allEmojis) ?? []
+            favorites = await EmojiIndexProvider.shared.favorites()
+        }
+        .overlay {
+            if let selected {
+                Text("Selected: \(selected.character)")
+                    .font(.largeTitle)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                    .padding()
+            }
+        }
+    }
+}
+
+#Preview("Single Selection") {
+    @Previewable @State var selected: Emoji?
+    @Previewable @State var emojis: [Emoji] = []
+
+    NavigationStack {
+        ScrollView {
+            EmojiGrid(emojis: emojis, selection: $selected)
+                .padding(.horizontal)
+        }
+        .navigationTitle("Pick One")
+        .task {
+            emojis = (try? await EmojiIndexProvider.shared.allEmojis) ?? []
+        }
+        .toolbar {
+            if let selected {
+                Text(selected.character)
+            }
+        }
+    }
+}
+
+#Preview("Multiple Selection") {
+    @Previewable @State var selected: Set<String> = []
+    @Previewable @State var emojis: [Emoji] = []
+
+    NavigationStack {
+        ScrollView {
+            EmojiGrid(emojis: emojis, selection: $selected)
+                .emojiGridStyle(.large)
+                .padding(.horizontal)
+        }
+        .navigationTitle("Favorites")
+        .task {
+            emojis = (try? await EmojiIndexProvider.shared.allEmojis) ?? []
+        }
+        .toolbar {
+            Text("\(selected.count) selected")
+        }
+    }
+}
+
+#Preview("Compact Horizontal") {
+    @Previewable @State var emojis: [Emoji] = []
+
+    VStack(alignment: .leading, spacing: 16) {
+        Text("Recent")
+            .font(.headline)
+            .padding(.horizontal)
+
+        ScrollView(.horizontal, showsIndicators: false) {
+            EmojiGrid(emojis: Array(emojis.prefix(20))) { emoji in
+                print("Tapped: \(emoji.character)")
+            }
+            .emojiGridStyle(.compact)
+            .padding(.horizontal)
+        }
+
+        Spacer()
+    }
+    .padding(.top)
+    .task {
+        emojis = (try? await EmojiIndexProvider.shared.allEmojis) ?? []
+    }
+}
+
+#Preview("Styles") {
+    @Previewable @State var selected: Emoji?
 
     let sampleEmojis = [
         Emoji(character: "😀", name: "grinning face", category: .smileysAndEmotion),
@@ -218,23 +343,26 @@ extension View {
 
     ScrollView {
         VStack(alignment: .leading, spacing: 24) {
-            Text("Default style")
+            Text("Default")
                 .font(.headline)
-            EmojiGrid(emojis: sampleEmojis, selection: $singleSelection)
+            EmojiGrid(emojis: sampleEmojis, selection: $selected)
 
-            Text("Large style")
+            Text("Large")
                 .font(.headline)
-            EmojiGrid(emojis: sampleEmojis, selection: $multipleSelection)
+            EmojiGrid(emojis: sampleEmojis, selection: $selected)
                 .emojiGridStyle(.large)
 
-            Text("Compact style")
+            Text("Compact")
                 .font(.headline)
             ScrollView(.horizontal) {
-                EmojiGrid(emojis: sampleEmojis) { emoji in
-                    print("Tapped: \(emoji.character)")
-                }
-                .emojiGridStyle(.compact)
+                EmojiGrid(emojis: sampleEmojis, selection: $selected)
+                    .emojiGridStyle(.compact)
             }
+
+            Text("Custom Size")
+                .font(.headline)
+            EmojiGrid(emojis: sampleEmojis, selection: $selected)
+                .emojiGridStyle(.default(cellSize: 60, spacing: 12))
         }
         .padding()
     }

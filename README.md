@@ -35,7 +35,68 @@ import SwiftEmoji       // UI + data
 
 ## Basic Usage
 
-### Tap-only (pickers, sheets)
+### Full Picker with Search & Favorites
+
+```swift
+struct EmojiPicker: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var searchText = ""
+    @State private var emojis: [Emoji] = []
+    @State private var favorites: [Emoji] = []
+    @State private var searchResults: [Emoji] = []
+
+    let onSelect: (Emoji) -> Void
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                if searchText.isEmpty && !favorites.isEmpty {
+                    Section {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            EmojiGrid(emojis: favorites) { emoji in
+                                select(emoji)
+                            }
+                            .emojiGridStyle(.compact)
+                            .padding(.horizontal)
+                        }
+                    } header: {
+                        Text("Frequently Used")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal)
+                    }
+                }
+
+                EmojiGrid(emojis: searchText.isEmpty ? emojis : searchResults) { emoji in
+                    select(emoji)
+                }
+                .padding(.horizontal)
+            }
+            .navigationTitle("Emoji")
+            .searchable(text: $searchText, prompt: "Search emoji")
+            .onChange(of: searchText) { _, query in
+                Task {
+                    searchResults = query.isEmpty ? [] :
+                        await EmojiIndexProvider.shared.search(query, rankByUsage: true)
+                }
+            }
+            .task {
+                emojis = (try? await EmojiIndexProvider.shared.allEmojis) ?? []
+                favorites = await EmojiIndexProvider.shared.favorites()
+            }
+        }
+    }
+
+    private func select(_ emoji: Emoji) {
+        EmojiUsageTracker.shared.recordUse(emoji.character)
+        onSelect(emoji)
+        dismiss()
+    }
+}
+```
+
+### Tap-only (simple)
 ```swift
 @State private var emojis: [Emoji] = []
 
@@ -46,7 +107,7 @@ ScrollView {
     }
 }
 .task {
-    emojis = try await EmojiIndexProvider.shared.allEmojis
+    emojis = (try? await EmojiIndexProvider.shared.allEmojis) ?? []
 }
 ```
 
@@ -78,6 +139,48 @@ let results = await EmojiIndexProvider.shared.search("smile")
 // 2. Name contains query
 // 3. Shortcode prefix match
 // 4. Keyword prefix match
+
+// With usage-based ranking (frequently used emoji appear first)
+let ranked = await EmojiIndexProvider.shared.search("smile", rankByUsage: true)
+```
+
+## Favorites & Usage Tracking
+
+Track emoji usage to show favorites and rank search results:
+
+```swift
+// Record when user selects an emoji
+EmojiUsageTracker.shared.recordUse(emoji.character)
+
+// Get favorites (sorted by frequency + recency)
+let favorites = await EmojiIndexProvider.shared.favorites()
+
+// Use in search ranking
+let results = await EmojiIndexProvider.shared.search(query, rankByUsage: true)
+```
+
+### How It Works
+
+Uses exponential moving average scoring:
+- Each use: all scores decay by 0.9, used emoji gets +1
+- This naturally surfaces frequently AND recently used emoji
+- Minimum 10 favorites kept, maximum 24 returned
+- New users get seeded defaults
+
+### Customization
+
+```swift
+let tracker = EmojiUsageTracker.shared
+tracker.minFavorites = 10        // Minimum to keep
+tracker.maxFavorites = 24        // Maximum to return
+tracker.decayFactor = 0.9        // Lower = faster decay
+tracker.defaultEmoji = ["👍", "❤️", "😂"]  // Seeds for new users
+
+// Clear history
+tracker.clearAll()
+
+// Remove specific emoji from favorites
+tracker.clearScore(for: "💩")
 ```
 
 ## Styling
