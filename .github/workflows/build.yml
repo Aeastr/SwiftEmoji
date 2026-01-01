@@ -3,6 +3,8 @@ name: Build
 on:
   pull_request:
     branches: [ main ]
+  push:
+    branches: [ main ]
   workflow_dispatch:
 
 concurrency:
@@ -10,8 +12,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
-    name: Build Package
+  build-ios:
+    name: Build (iOS)
     runs-on: macos-26
 
     steps:
@@ -24,7 +26,6 @@ jobs:
     - name: Find latest iOS Simulator
       id: find_simulator
       run: |
-        # Find the latest iOS simulator runtime and an available device
         RUNTIME_ID=$(xcrun simctl list runtimes ios --json | jq -r '.runtimes | sort_by(.version) | last | .identifier')
         if [ -z "$RUNTIME_ID" ] || [ "$RUNTIME_ID" == "null" ]; then
           echo "::error::No iOS runtime found."
@@ -39,22 +40,152 @@ jobs:
         echo "Found iOS Simulator Device UDID: $DEVICE_ID"
         echo "SIMULATOR_DESTINATION=platform=iOS Simulator,id=$DEVICE_ID" >> $GITHUB_OUTPUT
 
-    - name: Build for testing
-      timeout-minutes: 10
+    - name: Build for iOS
+      timeout-minutes: 15
       run: |
         set -o pipefail
-        echo "Using simulator destination: ${{ steps.find_simulator.outputs.SIMULATOR_DESTINATION }}"
-        xcodebuild build-for-testing \
+        xcodebuild build \
           -scheme SwiftEmoji-Package \
           -destination "${{ steps.find_simulator.outputs.SIMULATOR_DESTINATION }}" \
           -skipMacroValidation \
-          -derivedDataPath DerivedData \
           CODE_SIGN_IDENTITY="" \
           CODE_SIGNING_REQUIRED=NO
 
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: build-artifacts
-        path: DerivedData/Build/Products
-        retention-days: 1
+  build-macos:
+    name: Build (macOS)
+    runs-on: macos-26
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Show Xcode version
+      run: xcodebuild -version
+
+    - name: Build for macOS
+      timeout-minutes: 15
+      run: |
+        set -o pipefail
+        xcodebuild build \
+          -scheme SwiftEmoji-Package \
+          -destination "platform=macOS" \
+          -skipMacroValidation \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO
+
+  build-tvos:
+    name: Build (tvOS)
+    runs-on: macos-26
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Show Xcode version
+      run: xcodebuild -version
+
+    - name: Find latest tvOS Simulator
+      id: find_simulator
+      run: |
+        RUNTIME_ID=$(xcrun simctl list runtimes tvos --json | jq -r '.runtimes | sort_by(.version) | last | .identifier')
+        if [ -z "$RUNTIME_ID" ] || [ "$RUNTIME_ID" == "null" ]; then
+          echo "::error::No tvOS runtime found."
+          exit 1
+        fi
+        DEVICE_ID=$(xcrun simctl list devices --json | jq -r --arg RT_ID "$RUNTIME_ID" '.devices[$RT_ID] | map(select(.isAvailable)) | .[0].udid')
+        if [ -z "$DEVICE_ID" ] || [ "$DEVICE_ID" == "null" ]; then
+          echo "::error::No available tvOS simulator device found for runtime $RUNTIME_ID."
+          exit 1
+        fi
+        echo "Found tvOS Simulator Runtime: $RUNTIME_ID"
+        echo "Found tvOS Simulator Device UDID: $DEVICE_ID"
+        echo "SIMULATOR_DESTINATION=platform=tvOS Simulator,id=$DEVICE_ID" >> $GITHUB_OUTPUT
+
+    - name: Build for tvOS
+      timeout-minutes: 15
+      run: |
+        set -o pipefail
+        xcodebuild build \
+          -scheme SwiftEmoji-Package \
+          -destination "${{ steps.find_simulator.outputs.SIMULATOR_DESTINATION }}" \
+          -skipMacroValidation \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO
+
+  build-watchos:
+    name: Build (watchOS)
+    runs-on: macos-26
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Show Xcode version
+      run: xcodebuild -version
+
+    - name: Find latest watchOS Simulator
+      id: find_simulator
+      run: |
+        RUNTIME_ID=$(xcrun simctl list runtimes watchos --json | jq -r '.runtimes | sort_by(.version) | last | .identifier')
+        if [ -z "$RUNTIME_ID" ] || [ "$RUNTIME_ID" == "null" ]; then
+          echo "::error::No watchOS runtime found."
+          exit 1
+        fi
+        DEVICE_ID=$(xcrun simctl list devices --json | jq -r --arg RT_ID "$RUNTIME_ID" '.devices[$RT_ID] | map(select(.isAvailable)) | .[0].udid')
+        if [ -z "$DEVICE_ID" ] || [ "$DEVICE_ID" == "null" ]; then
+          echo "::error::No available watchOS simulator device found for runtime $RUNTIME_ID."
+          exit 1
+        fi
+        echo "Found watchOS Simulator Runtime: $RUNTIME_ID"
+        echo "Found watchOS Simulator Device UDID: $DEVICE_ID"
+        echo "SIMULATOR_DESTINATION=platform=watchOS Simulator,id=$DEVICE_ID" >> $GITHUB_OUTPUT
+
+    - name: Build for watchOS
+      timeout-minutes: 15
+      run: |
+        set -o pipefail
+        xcodebuild build \
+          -scheme SwiftEmoji-Package \
+          -destination "${{ steps.find_simulator.outputs.SIMULATOR_DESTINATION }}" \
+          -skipMacroValidation \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO
+
+  build-visionos:
+    name: Build (visionOS)
+    runs-on: macos-26
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Show Xcode version
+      run: xcodebuild -version
+
+    - name: Find latest visionOS Simulator
+      id: find_simulator
+      run: |
+        RUNTIME_ID=$(xcrun simctl list runtimes xros --json | jq -r '.runtimes | sort_by(.version) | last | .identifier')
+        if [ -z "$RUNTIME_ID" ] || [ "$RUNTIME_ID" == "null" ]; then
+          echo "::error::No visionOS runtime found."
+          exit 1
+        fi
+        DEVICE_ID=$(xcrun simctl list devices --json | jq -r --arg RT_ID "$RUNTIME_ID" '.devices[$RT_ID] | map(select(.isAvailable)) | .[0].udid')
+        if [ -z "$DEVICE_ID" ] || [ "$DEVICE_ID" == "null" ]; then
+          echo "::error::No available visionOS simulator device found for runtime $RUNTIME_ID."
+          exit 1
+        fi
+        echo "Found visionOS Simulator Runtime: $RUNTIME_ID"
+        echo "Found visionOS Simulator Device UDID: $DEVICE_ID"
+        echo "SIMULATOR_DESTINATION=platform=visionOS Simulator,id=$DEVICE_ID" >> $GITHUB_OUTPUT
+
+    - name: Build for visionOS
+      timeout-minutes: 15
+      run: |
+        set -o pipefail
+        xcodebuild build \
+          -scheme SwiftEmoji-Package \
+          -destination "${{ steps.find_simulator.outputs.SIMULATOR_DESTINATION }}" \
+          -skipMacroValidation \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO

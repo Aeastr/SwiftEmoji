@@ -116,7 +116,7 @@ public final class EmojiUsageTracker: @unchecked Sendable {
     /// Clear score for a specific emoji (remove from favorites).
     public func clearScore(for emoji: String) {
         lock.withLock {
-            scores.removeValue(forKey: emoji)
+            scores[emoji] = nil
         }
         saveScores()
     }

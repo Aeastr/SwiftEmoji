@@ -423,6 +423,57 @@ extension View {
                 .background(.ultraThinMaterial)
             }
         }
+        #if os(watchOS)
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                NavigationLink {
+                    List(availableLocales, id: \.identifier) { locale in
+                        Button {
+                            Task {
+                                await provider.setLocale(locale)
+                            }
+                        } label: {
+                            HStack {
+                                Text(locale.localizedDisplayName)
+                                Spacer()
+                                if locale.identifier == provider.locale.identifier {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
+                    }
+                    .navigationTitle("Locale")
+                } label: {
+                    Text(availableLocales.isEmpty ? "..." : provider.locale.identifier.uppercased())
+                }
+                .disabled(provider.isLoading || availableLocales.isEmpty)
+            }
+
+            ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink {
+                    List {
+                        Toggle("Diagnostics", isOn: $showDiagnostics)
+
+                        Button("Clear Caches", role: .destructive) {
+                            Task {
+                                try? await DiskCache.shared.clearAll()
+                                try? await provider.clearCacheAndReload()
+                            }
+                        }
+
+                        Button("Refresh") {
+                            Task {
+                                try? await provider.refresh()
+                            }
+                        }
+                    }
+                    .navigationTitle("Options")
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
+            }
+        }
+        #else
         .toolbar {
             ToolbarItem(placement: .navigation) {
                 Menu {
@@ -472,6 +523,7 @@ extension View {
                 }
             }
         }
+        #endif
         .task {
             // Fetch available locales
             availableLocales = await EmojiLocaleManager.shared.fetchAvailableLocales()
@@ -490,6 +542,21 @@ extension View {
     NavigationStack {
         List {
             Section("Settings") {
+                #if os(tvOS)
+                HStack {
+                    Text("Min Favorites: \(tracker.minFavorites)")
+                    Spacer()
+                    Button("-") { if tracker.minFavorites > 1 { tracker.minFavorites -= 1 } }
+                    Button("+") { if tracker.minFavorites < 20 { tracker.minFavorites += 1 } }
+                }
+
+                HStack {
+                    Text("Max Favorites: \(tracker.maxFavorites)")
+                    Spacer()
+                    Button("-") { if tracker.maxFavorites > 10 { tracker.maxFavorites -= 1 } }
+                    Button("+") { if tracker.maxFavorites < 50 { tracker.maxFavorites += 1 } }
+                }
+                #else
                 Stepper("Min Favorites: \(tracker.minFavorites)", value: Binding(
                     get: { tracker.minFavorites },
                     set: { tracker.minFavorites = $0 }
@@ -499,6 +566,7 @@ extension View {
                     get: { tracker.maxFavorites },
                     set: { tracker.maxFavorites = $0 }
                 ), in: 10...50)
+                #endif
 
                 Button("Clear All Usage") {
                     tracker.clearAll()
