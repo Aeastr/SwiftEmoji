@@ -1,4 +1,7 @@
 import Foundation
+import os.log
+
+private let logger = Logger(subsystem: "SwiftEmojiIndex", category: "DiskCache")
 
 /// Disk-based cache with an in-memory layer for emoji data.
 ///
@@ -16,9 +19,27 @@ public actor DiskCache: EmojiCache {
     /// The base directory for cache files.
     private let cacheDirectory: URL
 
+    /// Whether the cache is using a fallback directory.
+    ///
+    /// This is `true` when the caches directory was unavailable and the
+    /// temporary directory is being used instead. Cache data in the temporary
+    /// directory may be cleared by the system at any time.
+    public let isUsingFallbackDirectory: Bool
+
     /// Creates a new disk cache with the default cache directory.
+    ///
+    /// Falls back to the temporary directory if the caches directory is unavailable,
+    /// logging a warning when this occurs.
     public init() {
-        let baseDir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
+        let baseDir: URL
+        if let cachesDir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first {
+            baseDir = cachesDir
+            self.isUsingFallbackDirectory = false
+        } else {
+            baseDir = FileManager.default.temporaryDirectory
+            self.isUsingFallbackDirectory = true
+            logger.warning("Caches directory unavailable, using temporary directory for emoji cache. Cache may be cleared by system.")
+        }
         let bundleId = Bundle.main.bundleIdentifier ?? "SwiftEmoji"
         self.cacheDirectory = baseDir
             .appendingPathComponent(bundleId)
@@ -30,6 +51,7 @@ public actor DiskCache: EmojiCache {
     /// - Parameter cacheDirectory: The directory to store cache files
     public init(cacheDirectory: URL) {
         self.cacheDirectory = cacheDirectory
+        self.isUsingFallbackDirectory = false
     }
 
     /// Returns the cache file URL for a given source identifier.
