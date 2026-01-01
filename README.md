@@ -1,7 +1,11 @@
 # SwiftEmoji
 
 [![Swift 6.0+](https://img.shields.io/badge/Swift-6.0+-F05138?logo=swift&logoColor=white)](https://swift.org)
-[![Platforms](https://img.shields.io/badge/Platforms-iOS_17+_|_macOS_14+_|_visionOS_1+-000000?logo=apple)](https://developer.apple.com)
+[![iOS 17+](https://img.shields.io/badge/iOS-17+-000000?logo=apple)](https://developer.apple.com)
+[![macOS 14+](https://img.shields.io/badge/macOS-14+-000000?logo=apple)](https://developer.apple.com)
+[![tvOS 17+](https://img.shields.io/badge/tvOS-17+-000000?logo=apple)](https://developer.apple.com)
+[![watchOS 10+](https://img.shields.io/badge/watchOS-10+-000000?logo=apple)](https://developer.apple.com)
+[![visionOS 1+](https://img.shields.io/badge/visionOS-1+-000000?logo=apple)](https://developer.apple.com)
 [![Build](https://github.com/aeastr/SwiftEmoji/actions/workflows/build.yml/badge.svg)](https://github.com/aeastr/SwiftEmoji/actions/workflows/build.yml)
 [![Tests](https://github.com/aeastr/SwiftEmoji/actions/workflows/tests.yml/badge.svg)](https://github.com/aeastr/SwiftEmoji/actions/workflows/tests.yml)
 
@@ -276,7 +280,7 @@ EmojiGrid(emojis: emojis, selection: $selected)
 
 The shared instance automatically uses the best source for your platform and locale:
 - **macOS**: Apple CoreEmoji (localized) + Gemoji (shortcodes)
-- **iOS/visionOS**: Unicode CLDR (localized) + Gemoji (shortcodes)
+- **iOS/tvOS/watchOS/visionOS**: Unicode CLDR (localized) + Gemoji (shortcodes)
 
 ```swift
 // Recommended: uses system locale, optimal source
@@ -486,7 +490,7 @@ Emoji names and keywords are available in 100+ languages via Unicode CLDR (all p
 ### Unicode CLDR (All Platforms)
 
 ```swift
-// Japanese emoji names - works on iOS, macOS, visionOS
+// Japanese emoji names - works on all Apple platforms
 let source = CLDREmojiDataSource(locale: Locale(identifier: "ja"))
 let provider = EmojiIndexProvider(source: source)
 
@@ -612,8 +616,8 @@ This package uses the following sources for emoji data:
 
 ## Requirements
 
-- iOS 17+, macOS 14+, visionOS 1+
-- Swift 6.2+
+- iOS 17+, macOS 14+, tvOS 17+, watchOS 10+, visionOS 1+
+- Swift 6.0+
 
 ## License
 
