@@ -2,7 +2,8 @@
 
 [![Swift 6.0+](https://img.shields.io/badge/Swift-6.0+-F05138?logo=swift&logoColor=white)](https://swift.org)
 [![Platforms](https://img.shields.io/badge/Platforms-iOS_17+_|_macOS_14+_|_visionOS_1+-000000?logo=apple)](https://developer.apple.com)
-[![Emoji Fallbacks](https://github.com/aeastr/SwiftEmoji/actions/workflows/update-emoji-fallbacks.yml/badge.svg)](https://github.com/aeastr/SwiftEmoji/actions/workflows/update-emoji-fallbacks.yml)
+[![Build](https://github.com/aeastr/SwiftEmoji/actions/workflows/build.yml/badge.svg)](https://github.com/aeastr/SwiftEmoji/actions/workflows/build.yml)
+[![Tests](https://github.com/aeastr/SwiftEmoji/actions/workflows/tests.yml/badge.svg)](https://github.com/aeastr/SwiftEmoji/actions/workflows/tests.yml)
 
 Emoji grid and index for SwiftUI. No hidden behaviors, full customization.
 
