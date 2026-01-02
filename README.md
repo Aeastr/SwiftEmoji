@@ -57,7 +57,7 @@ import SwiftEmoji       // UI + data
 struct EmojiPicker: View {
     @Environment(\.dismiss) private var dismiss
     @State private var searchText = ""
-    @State private var emojis: [Emoji] = []
+    @State private var sections: [EmojiSection] = []
     @State private var favorites: [Emoji] = []
     @State private var searchResults: [Emoji] = []
 
@@ -66,28 +66,33 @@ struct EmojiPicker: View {
     var body: some View {
         NavigationStack {
             ScrollView {
+                // Favorites (flat, horizontal)
                 if searchText.isEmpty && !favorites.isEmpty {
-                    Section {
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            EmojiGrid(emojis: favorites) { emoji in
-                                select(emoji)
-                            }
-                            .emojiGridStyle(.compact)
-                            .padding(.horizontal)
+                    VStack(alignment: .leading, spacing: 8) {
+                        EmojiSectionHeader("Favorites", systemImage: "star")
+                        EmojiGrid(emojis: favorites) { emoji in
+                            select(emoji)
                         }
-                    } header: {
-                        Text("Frequently Used")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal)
+                        .emojiGridStyle(.default(cellSize: 60, spacing: 12))
                     }
+                    .padding(.horizontal)
+                    .padding(.bottom)
                 }
 
-                EmojiGrid(emojis: searchText.isEmpty ? emojis : searchResults) { emoji in
-                    select(emoji)
+                // Sectioned grid when browsing, flat results when searching
+                if searchText.isEmpty {
+                    EmojiGrid(sections: sections) { emoji in
+                        select(emoji)
+                    }
+                    .emojiGridStyle(.default(cellSize: 60, spacing: 12))
+                    .padding(.horizontal)
+                } else {
+                    EmojiGrid(emojis: searchResults) { emoji in
+                        select(emoji)
+                    }
+                    .emojiGridStyle(.default(cellSize: 60, spacing: 12))
+                    .padding(.horizontal)
                 }
-                .padding(.horizontal)
             }
             .navigationTitle("Emoji")
             .searchable(text: $searchText, prompt: "Search emoji")
@@ -98,7 +103,7 @@ struct EmojiPicker: View {
                 }
             }
             .task {
-                emojis = (try? await EmojiIndexProvider.shared.allEmojis) ?? []
+                sections = (try? await EmojiIndexProvider.shared.sections) ?? []
                 favorites = await EmojiIndexProvider.shared.favorites()
             }
         }
@@ -112,14 +117,29 @@ struct EmojiPicker: View {
 }
 ```
 
-### Tap-only (simple)
+### Sectioned Grid (with category headers)
+
+```swift
+@State private var sections: [EmojiSection] = []
+
+ScrollView {
+    EmojiGrid(sections: sections) { emoji in
+        print("Selected: \(emoji.character)")
+    }
+}
+.task {
+    sections = (try? await EmojiIndexProvider.shared.sections) ?? []
+}
+```
+
+### Flat Grid (search results, favorites)
+
 ```swift
 @State private var emojis: [Emoji] = []
 
 ScrollView {
     EmojiGrid(emojis: emojis) { emoji in
         print("Selected: \(emoji.character)")
-        dismiss()
     }
 }
 .task {
@@ -132,7 +152,7 @@ ScrollView {
 @State private var selected: Emoji?
 
 ScrollView {
-    EmojiGrid(emojis: emojis, selection: $selected)
+    EmojiGrid(sections: sections, selection: $selected)
 }
 ```
 
@@ -141,7 +161,7 @@ ScrollView {
 @State private var selected: Set<String> = []
 
 ScrollView {
-    EmojiGrid(emojis: emojis, selection: $selected)
+    EmojiGrid(sections: sections, selection: $selected)
 }
 ```
 
@@ -298,8 +318,27 @@ await provider.setLocale(Locale(identifier: "ja"))
 
 // Or create with specific locale
 let japanese = EmojiIndexProvider(locale: Locale(identifier: "ja"))
+```
 
-// Custom source (advanced)
+### Why Blending?
+
+Emoji data comes from multiple sources, each with different strengths:
+
+| Source | Provides | Missing |
+|--------|----------|---------|
+| **Gemoji** | Standard order, shortcodes, keywords, categories | Localized names |
+| **CLDR** | Localized names (100+ languages) | Order, shortcodes, categories |
+| **Apple** | High-quality localized names (macOS) | Order, shortcodes, categories |
+
+The default configuration blends these automatically:
+- **Order & metadata** from Gemoji (standard emoji keyboard order)
+- **Localized names** from CLDR or Apple
+
+This ensures emojis appear in the familiar order users expect (matching system keyboards), with proper categories for sectioned display, while still showing localized names.
+
+### Custom Sources (Advanced)
+
+```swift
 struct MySource: EmojiDataSource {
     let identifier = "my-source"
     let displayName = "My Source"
@@ -402,17 +441,19 @@ Fallback must be JSON array of `EmojiRawEntry`:
 swift run BuildEmojiIndex
 ```
 
-Interactive CLI that guides you through building fallback files:
+Interactive CLI for building fallback files. **Use `blended` (the default)** - it matches the app's runtime behavior and provides standard emoji order.
 
-| Source | Description |
-|--------|-------------|
-| **GitHub Gemoji** | English with shortcodes |
-| **Unicode CLDR** | 30+ languages, cross-platform |
-| **CLDR + Gemoji** | Localized names with shortcodes |
-| **Apple CoreEmoji** | macOS only, highest quality localization |
-| **Apple + Gemoji** | macOS only, localized with shortcodes |
+| Source | Recommended | Description |
+|--------|-------------|-------------|
+| **CLDR + Gemoji** | Yes | Localized names, standard order, shortcodes |
+| **Apple + Gemoji** | Yes (macOS) | Apple localization, standard order, shortcodes |
+| **GitHub Gemoji** | No | English only, no localization |
+| **Unicode CLDR** | No | No standard order, no shortcodes, no categories |
+| **Apple CoreEmoji** | No | No standard order, no shortcodes |
 
-You can select multiple locales at once. Files are written to `Sources/SwiftEmojiIndex/Resources/` as `emoji-fallback-{locale}.json`.
+Non-blended sources exist for testing/debugging but produce incomplete data (wrong emoji order, missing categories).
+
+Files are written to `Sources/SwiftEmojiIndex/Resources/` as `emoji-fallback-{locale}.json`.
 
 ### Automated Updates
 
