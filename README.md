@@ -1,15 +1,22 @@
-# SwiftEmoji
+<div align="center">
+    <img width="180" height="180" src="/Resources/icon/icon.png" alt="SwiftEmoji Logo">
+    <h1><b>SwiftEmoji</b></h1>
+    <p>
+        Emoji grid and index for SwiftUI. No hidden behaviors, full customization.
+    </p>
+</div>
 
-[![Swift 6.0+](https://img.shields.io/badge/Swift-6.0+-F05138?logo=swift&logoColor=white)](https://swift.org)
-[![iOS 17+](https://img.shields.io/badge/iOS-17+-000000?logo=apple)](https://developer.apple.com)
-[![macOS 14+](https://img.shields.io/badge/macOS-14+-000000?logo=apple)](https://developer.apple.com)
-[![tvOS 17+](https://img.shields.io/badge/tvOS-17+-000000?logo=apple)](https://developer.apple.com)
-[![watchOS 10+](https://img.shields.io/badge/watchOS-10+-000000?logo=apple)](https://developer.apple.com)
-[![visionOS 1+](https://img.shields.io/badge/visionOS-1+-000000?logo=apple)](https://developer.apple.com)
-[![Build](https://github.com/aeastr/SwiftEmoji/actions/workflows/build.yml/badge.svg)](https://github.com/aeastr/SwiftEmoji/actions/workflows/build.yml)
-[![Tests](https://github.com/aeastr/SwiftEmoji/actions/workflows/tests.yml/badge.svg)](https://github.com/aeastr/SwiftEmoji/actions/workflows/tests.yml)
+<p align="center">
+    <a href="https://swift.org"><img src="https://img.shields.io/badge/Swift-6.0+-F05138?logo=swift&logoColor=white" alt="Swift 6.0+"></a>
+    <a href="https://developer.apple.com"><img src="https://img.shields.io/badge/iOS-17+-000000?logo=apple" alt="iOS 17+"></a>
+    <a href="https://developer.apple.com"><img src="https://img.shields.io/badge/macOS-14+-000000?logo=apple" alt="macOS 14+"></a>
+    <a href="https://developer.apple.com"><img src="https://img.shields.io/badge/tvOS-17+-000000?logo=apple" alt="tvOS 17+"></a>
+    <a href="https://developer.apple.com"><img src="https://img.shields.io/badge/watchOS-10+-000000?logo=apple" alt="watchOS 10+"></a>
+    <a href="https://developer.apple.com"><img src="https://img.shields.io/badge/visionOS-1+-000000?logo=apple" alt="visionOS 1+"></a>
+    <a href="https://github.com/aeastr/SwiftEmoji/actions/workflows/build.yml"><img src="https://github.com/aeastr/SwiftEmoji/actions/workflows/build.yml/badge.svg" alt="Build"></a>
+    <a href="https://github.com/aeastr/SwiftEmoji/actions/workflows/tests.yml"><img src="https://github.com/aeastr/SwiftEmoji/actions/workflows/tests.yml/badge.svg" alt="Tests"></a>
+</p>
 
-Emoji grid and index for SwiftUI. No hidden behaviors, full customization.
 
 ## Installation
 
