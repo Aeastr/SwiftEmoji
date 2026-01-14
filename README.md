@@ -28,12 +28,6 @@
 - Separate targets for UI (`SwiftEmoji`) and data-only (`SwiftEmojiIndex`)
 
 
-## Requirements
-
-- Swift 6.0+
-- iOS 17+ / macOS 14+ / watchOS 10+ / tvOS 17+ / visionOS 1+
-
-
 ## Installation
 
 ```swift
@@ -201,6 +195,24 @@ let favorites = await EmojiIndexProvider.shared.favorites()
 let results = await EmojiIndexProvider.shared.search(query, ranking: .usage)
 ```
 
+### Models
+
+```swift
+public struct Emoji {
+    let character: String        // "😀"
+    let name: String             // "grinning face"
+    let category: EmojiCategory  // .smileysAndEmotion, .peopleAndBody, etc.
+    let shortcodes: [String]     // ["grinning"]
+    let keywords: [String]       // ["face", "grin", "happy"]
+    let supportsSkinTone: Bool
+}
+
+// Direct init (no metadata)
+let emoji = Emoji("🎨")
+
+// Lookup with full metadata
+if let emoji = await Emoji.lookup("🎨") {
+    print(emoji.name) // "artist palette"
 
 ## Customization
 
@@ -320,24 +332,9 @@ public enum EmojiCategory {
     case symbols
     case flags
 }
-```
-
-### SkinTone
-
-```swift
-public enum SkinTone {
-    case none, light, mediumLight, medium, mediumDark, dark
-}
-
-let modified = emoji.withSkinTone(.medium)  // Returns emoji character with modifier
-```
-
-
 ## How It Works
 
-### Data Sources
-
-The shared instance automatically uses the best source for your platform and locale:
+The shared instance automatically selects the best data source for your platform:
 - **macOS**: Apple CoreEmoji (localized) + Gemoji (shortcodes)
 - **iOS/tvOS/watchOS/visionOS**: Unicode CLDR (localized) + Gemoji (shortcodes)
 
@@ -347,66 +344,15 @@ The shared instance automatically uses the best source for your platform and loc
 | **CLDR** | Localized names (100+ languages) | Order, shortcodes, categories |
 | **Apple** | High-quality localized names (macOS) | Order, shortcodes, categories |
 
-The default configuration blends these automatically - order & metadata from Gemoji (standard emoji keyboard order), localized names from CLDR or Apple.
+Data is cached to disk and refreshes automatically when stale (default: 24 hours). A bundled fallback ensures offline functionality.
 
-See [Data Sources](docs/SwiftEmojiIndex/DataSources.md) for custom sources and blending.
+Favorites use exponential moving average scoring - each use decays all scores by 0.9 and adds +1 to the used emoji, naturally surfacing frequently AND recently used emoji.
 
-### Localization
-
-```swift
-// Recommended: uses system locale, optimal source
-let provider = EmojiIndexProvider.shared
-
-// Change locale dynamically
-await provider.setLocale(Locale(identifier: "ja"))
-
-// Or create with specific locale
-let japanese = EmojiIndexProvider(locale: Locale(identifier: "ja"))
-```
-
-See [Localization](docs/SwiftEmojiIndex/Localization.md) for locale manager and platform-specific options.
-
-### Caching
-
-Data is cached to disk at `~/Library/Caches/[bundleID]/SwiftEmojiIndex/[sourceId].json` and refreshes automatically when stale (default: 24 hours).
-
-```swift
-// Manual refresh
-try await EmojiIndexProvider.shared.refresh()
-
-// Clear cache and reload
-try await EmojiIndexProvider.shared.clearCacheAndReload()
-```
-
-See [Cache Management](docs/SwiftEmojiIndex/CacheManagement.md) for detailed cache control.
-
-### Fallback
-
-The package includes a bundled fallback for offline use. Data loads in order: cache → fallback → remote.
-
-```swift
-// Custom fallback
-let customFallback = Bundle.main.url(forResource: "my-emojis", withExtension: "json")!
-let provider = EmojiIndexProvider(
-    source: GemojiDataSource.shared,
-    fallbackURL: customFallback
-)
-```
-
-Build fallback files with the CLI:
-```bash
-swift run BuildEmojiIndex
-```
-
-See [Fallback Files](docs/SwiftEmojiIndex/FallbackFiles.md) for automation and file format.
-
-### Favorites Scoring
-
-Uses exponential moving average scoring:
-- Each use: all scores decay by 0.9, used emoji gets +1
-- Naturally surfaces frequently AND recently used emoji
-- Minimum 10 favorites kept, maximum 24 returned
-- New users get seeded defaults
+For more details:
+- [Data Sources](docs/SwiftEmojiIndex/DataSources.md) - custom sources, blending, protocols
+- [Localization](docs/SwiftEmojiIndex/Localization.md) - locale manager, CLDR, Apple CoreEmoji
+- [Cache Management](docs/SwiftEmojiIndex/CacheManagement.md) - inspection, custom cache
+- [Fallback Files](docs/SwiftEmojiIndex/FallbackFiles.md) - building, automation, file format
 
 
 ## Contributing
